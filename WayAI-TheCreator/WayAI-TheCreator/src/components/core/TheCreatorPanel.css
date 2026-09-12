@@ -1,0 +1,1941 @@
+.creator-panel,
+.creator-panel * {
+  box-sizing: border-box;
+}
+
+.creator-cockpit {
+  /* Was its own hardcoded near-black/gold "cinema" palette, independent of
+     the app's real design tokens (CLAUDE.md: "never hardcode hex colors,
+     always use the CSS variables"). Every --creator-* name below now
+     resolves to a real global token instead of a literal hex, so Creator
+     tracks whatever the rest of Way AI Code actually renders as — this is a
+     value-level fix, not a structural one: TheCreatorWorkspace.css keeps its
+     own parallel block below since .creator-cockpit also mounts standalone
+     inside CoreWorkspace.jsx with no .creator-workspace ancestor. The
+     translucent white overlay tints (--creator-card-soft/hover,
+     --creator-line-soft) are decorative hover/glass effects, not surface
+     colors, so they're left as literal rgba — there's no token for those.
+     --creator-accent-dim/-line are gold-tinted rgba with no alpha-gold
+     token to reuse, so those also stay literal. */
+  --creator-bg: var(--ink);
+  --creator-panel: var(--ink2);
+  --creator-card: var(--ink3);
+  --creator-card-soft: rgba(255,255,255,.055);
+  --creator-card-hover: rgba(255,255,255,.1);
+  --creator-line: var(--border);
+  --creator-line-soft: rgba(255,255,255,.08);
+  --creator-text: var(--t1);
+  --creator-muted: var(--t2);
+  --creator-faint: var(--t3);
+  /* Same accent as TheCreatorWorkspace.css (--creator-accent, gold) — reused
+     here since this panel defines its own local token scope rather than
+     inheriting the parent's. --gold already equals the old literal hex
+     exactly, so this is a zero-visual-change correctness fix. */
+  --creator-accent: var(--gold);
+  --creator-accent-ink: var(--ink);
+  --creator-accent-dim: rgba(255,209,102,.14);
+  --creator-accent-line: rgba(255,209,102,.4);
+  --creator-ease: cubic-bezier(.2,.8,.2,1);
+  height: calc(100vh - 158px);
+  min-height: 680px;
+  display: grid;
+  grid-template-columns: minmax(278px, 320px) minmax(0, 1fr) minmax(278px, 320px);
+  gap: 14px;
+  padding: 14px;
+  color: var(--creator-text);
+  background:
+    radial-gradient(circle at 20% -10%, rgba(255,255,255,.11), transparent 30%),
+    radial-gradient(circle at 90% 8%, rgba(255,255,255,.06), transparent 28%),
+    linear-gradient(135deg, var(--creator-bg), var(--creator-bg) 48%, var(--creator-panel));
+  overflow: hidden;
+}
+
+.creator-left-rail,
+.creator-main-stage,
+.creator-inspector {
+  min-height: 0;
+  min-width: 0;
+}
+
+/* Rail collapse — driven by the same primary/secondary sidebar toggles
+   every other workspace uses (App.jsx layoutControls "creator" branch).
+   Collapsing a rail removes its grid track entirely rather than just
+   hiding its content, so the main stage reclaims the freed width. */
+.creator-cockpit.creator-left-collapsed {
+  grid-template-columns: 0 minmax(0, 1fr) minmax(278px, 320px);
+}
+.creator-cockpit.creator-right-collapsed {
+  grid-template-columns: minmax(278px, 320px) minmax(0, 1fr) 0;
+}
+.creator-cockpit.creator-left-collapsed.creator-right-collapsed {
+  grid-template-columns: 0 minmax(0, 1fr) 0;
+}
+.creator-left-collapsed .creator-left-rail,
+.creator-right-collapsed .creator-inspector {
+  overflow: hidden;
+  opacity: 0;
+  pointer-events: none;
+}
+
+.creator-left-rail,
+.creator-inspector {
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+  overflow: auto;
+}
+
+.creator-brand-card,
+.creator-command-card,
+.creator-room-rail,
+.creator-inspector > section,
+.creator-overview-hero,
+.creator-output-banner,
+.creator-output-list,
+.creator-render-queue,
+.creator-flow-preview,
+.creator-room-screen,
+.creator-room-head,
+.creator-scene-card,
+.creator-clip-card,
+.creator-motion-card,
+.creator-comic-card,
+.creator-prompt-card,
+.creator-source-policy,
+.creator-asset-card {
+  border: 1px solid var(--creator-line);
+  background:
+    linear-gradient(180deg, rgba(255,255,255,.055), rgba(255,255,255,.02)),
+    var(--creator-panel);
+  border-radius: 12px;
+  box-shadow: 0 18px 52px rgba(0,0,0,.25);
+  transition: border-color .18s var(--creator-ease), box-shadow .18s var(--creator-ease), transform .18s var(--creator-ease);
+}
+
+.creator-brand-card {
+  padding: 16px;
+}
+
+/* ── Interaction polish ──────────────────────────────────────────────────
+   This panel had almost no hover feedback or transitions anywhere (2 :hover
+   rules across the whole file) and no accent color at all — every state
+   change was an instant snap. These broad, substring-matched selectors give
+   every card/button/chip in the cockpit consistent hover lift, an accent-
+   tinted active/selected state, and smooth transitions, without having to
+   hand-touch every one of the ~30 individual component classes below. More
+   specific rules further down in this file still win on cascade order. */
+.creator-cockpit button,
+.creator-cockpit [class*="-btn"],
+.creator-cockpit [class*="-card"],
+.creator-cockpit [class*="-chip"],
+.creator-cockpit [class*="-pill"],
+.creator-cockpit [class*="-tab"] {
+  transition: background .16s var(--creator-ease), border-color .16s var(--creator-ease), color .16s var(--creator-ease), box-shadow .16s var(--creator-ease), transform .16s var(--creator-ease);
+}
+
+.creator-cockpit button:not(:disabled):hover,
+.creator-cockpit [class*="-btn"]:not(:disabled):hover {
+  border-color: var(--creator-accent-line);
+  box-shadow: 0 0 0 1px var(--creator-accent-line) inset;
+}
+
+.creator-cockpit [class*="-card"]:not(.is-active):not(.is-selected):hover,
+.creator-cockpit [class*="-chip"]:not(.is-active):not(.is-selected):hover,
+.creator-cockpit [class*="-tab"]:not(.is-active):not(.is-selected):hover {
+  border-color: rgba(255,255,255,.28);
+  transform: translateY(-1px);
+  box-shadow: 0 22px 60px rgba(0,0,0,.32);
+}
+
+.creator-cockpit .is-active,
+.creator-cockpit .is-selected {
+  border-color: var(--creator-accent-line) !important;
+  box-shadow: 0 0 0 1px var(--creator-accent-line) inset, 0 18px 52px rgba(0,0,0,.3) !important;
+}
+
+.creator-cockpit button:not(:disabled):active,
+.creator-cockpit [class*="-btn"]:not(:disabled):active {
+  transform: translateY(1px);
+}
+
+.creator-cockpit button:disabled,
+.creator-cockpit [class*="-btn"]:disabled {
+  opacity: .5;
+  cursor: not-allowed;
+}
+
+.creator-cockpit button:focus-visible,
+.creator-cockpit [class*="-btn"]:focus-visible,
+.creator-cockpit [class*="-card"]:focus-visible {
+  outline: 2px solid var(--creator-accent);
+  outline-offset: 1px;
+}
+
+.creator-kicker,
+.creator-command-card span,
+.creator-output-banner span,
+.creator-room-head span,
+.creator-overview-hero span,
+.creator-section-title,
+.creator-inspector span,
+.creator-source-policy,
+.creator-card-label {
+  color: var(--creator-faint);
+  font-size: 10.5px;
+  font-weight: 850;
+  letter-spacing: .13em;
+  text-transform: uppercase;
+}
+
+.creator-kicker,
+.creator-section-title {
+  display: inline-flex;
+  align-items: center;
+  gap: 7px;
+}
+
+.creator-brand-card h2 {
+  margin: 8px 0 6px;
+  color: var(--creator-text);
+  font-size: 30px;
+  line-height: .95;
+  letter-spacing: -.06em;
+}
+
+.creator-brand-card p,
+.creator-inspector p,
+.creator-overview-hero p,
+.creator-room-head p {
+  margin: 0;
+  color: var(--creator-muted);
+  font-size: 12.5px;
+  line-height: 1.5;
+}
+
+.creator-brand-row {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 8px;
+  margin-top: 12px;
+}
+
+.creator-safe {
+  width: fit-content;
+  display: inline-flex;
+  align-items: center;
+  gap: 7px;
+  padding: 7px 10px;
+  border: 1px solid rgba(212,212,212,.18);
+  border-radius: 999px;
+  color: var(--creator-muted);
+  background: rgba(255,255,255,.06);
+  font-size: 11px;
+  font-weight: 750;
+}
+
+.creator-tour-btn {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  padding: 7px 10px;
+  border: 1px solid rgba(212,212,212,.18);
+  border-radius: 999px;
+  color: var(--creator-faint);
+  background: transparent;
+  font-size: 11px;
+  font-weight: 700;
+  cursor: pointer;
+}
+
+.creator-tour-btn:hover {
+  color: var(--creator-text);
+  border-color: rgba(245,245,245,.4);
+}
+
+.creator-command-card {
+  padding: 14px;
+  display: grid;
+  gap: 12px;
+}
+
+.creator-command-card label {
+  display: grid;
+  gap: 7px;
+}
+
+.creator-command-card textarea,
+.creator-command-card input,
+.creator-command-card select {
+  width: 100%;
+  border: 1px solid rgba(115,115,115,.3);
+  border-radius: 10px;
+  outline: none;
+  color: var(--creator-text);
+  background: rgba(23,23,23,.88);
+  padding: 10px 11px;
+  font: inherit;
+  font-size: 12.5px;
+}
+
+.creator-command-card textarea {
+  min-height: 120px;
+  resize: vertical;
+}
+
+.creator-command-card textarea:focus,
+.creator-command-card input:focus,
+.creator-command-card select:focus {
+  border-color: rgba(245,245,245,.58);
+  box-shadow: 0 0 0 3px rgba(255,255,255,.06);
+}
+
+.creator-command-card button,
+.creator-room-rail button,
+.creator-room-card,
+.creator-output-banner button,
+.creator-output-list button,
+.creator-render-queue button,
+.creator-room-output-actions button,
+.creator-output-vault button,
+.creator-preview-controls button,
+.creator-preview-inspector button,
+.creator-preview-timeline button,
+.creator-prompt-card button,
+.creator-illustration-preview-meta a {
+  border: 1px solid rgba(212,212,212,.18);
+  border-radius: 10px;
+  color: var(--creator-text);
+  background:
+    linear-gradient(180deg, rgba(255,255,255,.09), rgba(255,255,255,.035)),
+    rgba(23,23,23,.9);
+  cursor: pointer;
+  transition: transform .15s ease, background .15s ease, border-color .15s ease;
+}
+
+.creator-command-card button {
+  min-height: 42px;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 8px;
+  font-weight: 800;
+}
+
+.creator-command-card button:hover,
+.creator-room-rail button:hover,
+.creator-room-card:hover,
+.creator-output-banner button:hover,
+.creator-output-list button:hover,
+.creator-render-queue button:hover,
+.creator-room-output-actions button:hover,
+.creator-output-vault button:hover,
+.creator-preview-controls button:hover,
+.creator-preview-inspector button:hover,
+.creator-preview-timeline button:hover,
+.creator-prompt-card button:hover,
+.creator-illustration-preview-meta a:hover {
+  transform: translateY(-1px);
+  border-color: rgba(245,245,245,.42);
+  background:
+    linear-gradient(180deg, rgba(255,255,255,.14), rgba(255,255,255,.045)),
+    rgba(38,38,38,.92);
+}
+
+.creator-command-card button:disabled,
+.creator-prompt-card button:disabled {
+  opacity: .55;
+  cursor: not-allowed;
+  transform: none;
+}
+
+.creator-ai-script-hint {
+  margin-top: -4px;
+  color: var(--creator-faint);
+  font-size: 10.5px;
+  line-height: 1.4;
+}
+
+.creator-script-source-badge {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  width: fit-content;
+  margin-bottom: 4px;
+  padding: 5px 10px;
+  border: 1px solid rgba(115,115,115,.28);
+  border-radius: 999px;
+  color: var(--creator-faint);
+  background: rgba(255,255,255,.04);
+  font-size: 10.5px;
+  font-weight: 750;
+  text-transform: uppercase;
+  letter-spacing: .05em;
+}
+
+.creator-script-source-badge.is-ai {
+  border-color: rgba(212,212,212,.4);
+  color: var(--creator-text);
+  background: rgba(255,255,255,.09);
+}
+
+.creator-preview-controls button:disabled {
+  opacity: .48;
+  cursor: not-allowed;
+  transform: none;
+}
+
+.creator-room-rail {
+  padding: 8px;
+  display: grid;
+  gap: 7px;
+}
+
+.creator-room-rail button {
+  min-height: 42px;
+  display: grid;
+  grid-template-columns: auto minmax(0, 1fr) auto;
+  align-items: center;
+  gap: 9px;
+  padding: 9px 10px;
+  text-align: left;
+}
+
+.creator-room-rail button span {
+  overflow: hidden;
+  color: var(--creator-muted);
+  font-size: 12.5px;
+  font-weight: 750;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.creator-room-rail button b {
+  min-width: 28px;
+  padding: 3px 7px;
+  border-radius: 999px;
+  color: var(--creator-bg);
+  background: var(--creator-text);
+  font-size: 10.5px;
+  text-align: center;
+}
+
+/* Pipeline-stage section headers above each group of rooms in the nav rail
+   (Concept & Input / Pre-production & Assets / Generation & Media / Export &
+   Output — see CREATOR_ROOMS' stage field). Purely a grouping label, same
+   visual language as the existing .creator-kicker uppercase labels
+   elsewhere in this file, just scoped to the room list. */
+.creator-room-rail-item {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+}
+
+.creator-room-rail-stage {
+  margin: 6px 2px 0;
+  color: var(--creator-faint);
+  font-size: 10px;
+  font-weight: 850;
+  letter-spacing: .1em;
+  text-transform: uppercase;
+}
+
+.creator-room-rail-item:first-child .creator-room-rail-stage {
+  margin-top: 0;
+}
+
+.creator-room-rail button.is-active {
+  border-color: rgba(245,245,245,.6);
+  background:
+    linear-gradient(180deg, rgba(245,245,245,.2), rgba(245,245,245,.075)),
+    rgba(38,38,38,.95);
+}
+
+.creator-main-stage {
+  overflow: hidden;
+}
+
+.creator-overview,
+.creator-room-screen {
+  height: 100%;
+  min-height: 0;
+  overflow: auto;
+}
+
+.creator-overview {
+  display: grid;
+  grid-auto-rows: auto;
+  gap: 12px;
+}
+
+.creator-overview-hero {
+  padding: 20px;
+  background:
+    radial-gradient(circle at 82% 10%, rgba(255,255,255,.12), transparent 30%),
+    linear-gradient(135deg, rgba(255,255,255,.075), rgba(255,255,255,.025)),
+    rgba(8,8,8,.9);
+}
+
+.creator-overview-hero h3,
+.creator-room-head h3 {
+  margin: 8px 0 7px;
+  color: var(--creator-text);
+  /* Scoped to Creator only — the app-wide --ui font got locked to plain
+     system-ui elsewhere (see this file's top-of-plan notes), flattening
+     hierarchy everywhere. The Syne files are already loaded app-wide
+     (index.html), so opting Creator's own headlines back into the real
+     display face is safe and touches nothing outside this tab. */
+  font-family: 'Syne', sans-serif;
+  font-size: clamp(32px, 4vw, 54px);
+  font-weight: 700;
+  line-height: .92;
+  letter-spacing: -.03em;
+}
+
+.creator-metric-grid {
+  display: grid;
+  grid-template-columns: repeat(4, minmax(0, 1fr));
+  gap: 10px;
+}
+
+.creator-metric-grid article,
+.creator-inspector-grid article {
+  padding: 13px;
+  border: 1px solid var(--creator-line);
+  border-radius: 12px;
+  background: rgba(18,18,18,.82);
+}
+
+.creator-metric-grid span,
+.creator-inspector-grid span {
+  display: block;
+  color: var(--creator-faint);
+  font-size: 10px;
+  font-weight: 800;
+  letter-spacing: .11em;
+  text-transform: uppercase;
+}
+
+.creator-metric-grid b,
+.creator-inspector-grid b {
+  display: block;
+  margin-top: 6px;
+  color: var(--creator-text);
+  font-family: 'Syne', sans-serif;
+  font-weight: 700;
+  font-size: 26px;
+  line-height: 1;
+}
+
+/* Overview's pipeline view — the 10 production/output rooms grouped into
+   the same 4 stages as the nav rail (see PIPELINE_STAGE_ORDER/STAGE_LABELS
+   in TheCreatorPanel.jsx), laid out as horizontal columns with a connecting
+   arrow between each, so the production flow (Input -> Pre-production ->
+   Generation -> Export) reads left-to-right at a glance. Columns wrap to a
+   vertical stack on narrow widths via clamp()-driven min width, matching
+   the rest of this file's responsive approach — never a fixed pixel count
+   of columns that can overflow. */
+.creator-pipeline {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: flex-start;
+  gap: clamp(10px, 1.6vw, 20px);
+}
+
+.creator-pipeline-stage {
+  flex: 1 1 clamp(220px, 22vw, 280px);
+  min-width: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+  position: relative;
+  padding-right: clamp(10px, 1.6vw, 20px);
+}
+
+.creator-pipeline-stage:not(:last-child)::after {
+  content: "";
+  position: absolute;
+  top: 14px;
+  right: 0;
+  width: 10px;
+  height: 10px;
+  border-top: 2px solid var(--creator-line);
+  border-right: 2px solid var(--creator-line);
+  transform: translateX(50%) rotate(45deg);
+}
+
+.creator-pipeline-stage-head {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+
+.creator-pipeline-stage-head b {
+  flex-shrink: 0;
+  width: 22px;
+  height: 22px;
+  display: grid;
+  place-items: center;
+  border-radius: 999px;
+  border: 1px solid var(--creator-line);
+  color: var(--creator-muted);
+  font-size: 11px;
+}
+
+.creator-pipeline-stage-head span {
+  color: var(--creator-faint);
+  font-size: 10.5px;
+  font-weight: 850;
+  letter-spacing: .1em;
+  text-transform: uppercase;
+}
+
+.creator-pipeline .creator-room-grid {
+  grid-template-columns: 1fr;
+}
+
+.creator-room-grid {
+  display: grid;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  gap: clamp(10px, 1.4vw, 16px);
+}
+
+/* ── Media Canvas: preview tiles ──────────────────────────────────────────
+   Every room card leads with a framed visual (a real thumbnail once one
+   exists, a designed placeholder — glow + the room's own icon, oversized
+   and faint, plus a fine scanline texture — when it doesn't) instead of a
+   status pill sitting above straight text. This is the actual fix for
+   "feels like reading a paper, not making a video": the tile is the
+   dominant element on every card now, text is a caption underneath it. */
+.creator-tile {
+  position: relative;
+  aspect-ratio: 16 / 9;
+  border-radius: 9px;
+  overflow: hidden;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  border: 1px solid var(--creator-line);
+  background:
+    radial-gradient(circle at 28% 18%, rgba(255,255,255,.09), transparent 55%),
+    linear-gradient(160deg, var(--creator-card-hover), var(--creator-panel));
+}
+
+.creator-tile--sm {
+  aspect-ratio: 4 / 3;
+  margin-bottom: 4px;
+}
+
+.creator-tile img {
+  position: absolute;
+  inset: 0;
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+}
+
+.creator-tile-icon {
+  /* --creator-line is a border color (low-contrast by design) — using it
+     here made the placeholder icon nearly invisible against the tile's own
+     dark background, so an "empty" room's tile just looked like a blank
+     rectangle instead of a designed placeholder. --creator-muted is an
+     actual foreground gray, meant to be read. */
+  color: var(--creator-muted);
+  opacity: .8;
+  transform: scale(2.6);
+}
+
+.creator-tile-scan {
+  position: absolute;
+  inset: 0;
+  background: repeating-linear-gradient(0deg, rgba(255,255,255,.02) 0px, rgba(255,255,255,.02) 1px, transparent 1px, transparent 3px);
+  pointer-events: none;
+}
+
+.creator-tile-status {
+  position: absolute;
+  top: 7px;
+  right: 7px;
+}
+
+.creator-room-card {
+  min-height: 0;
+  display: grid;
+  align-content: start;
+  gap: 9px;
+  padding: 12px;
+  text-align: left;
+}
+
+.creator-room-card-caption {
+  display: flex;
+  align-items: baseline;
+  justify-content: space-between;
+  gap: 8px;
+}
+
+.creator-room-card-caption strong {
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  color: var(--creator-text);
+  font-size: 15px;
+  letter-spacing: -.02em;
+}
+
+.creator-room-card-caption em {
+  flex-shrink: 0;
+  color: var(--creator-faint);
+  font-size: 11.5px;
+  font-style: normal;
+}
+
+.creator-room-status,
+.creator-tile-status {
+  padding: 4px 9px;
+  border-radius: 999px;
+  font-size: 10px;
+  font-weight: 850;
+  letter-spacing: .02em;
+}
+
+.creator-room-status--empty {
+  color: var(--creator-muted);
+  background: rgba(255,255,255,.08);
+}
+
+.creator-room-status--started {
+  color: var(--creator-accent-ink);
+  background: var(--creator-accent);
+}
+
+.creator-room-status--ready {
+  color: var(--ink);
+  background: var(--neon);
+}
+
+.creator-room-progress {
+  display: flex;
+  gap: 4px;
+  margin-top: auto;
+}
+
+.creator-room-progress i {
+  flex: 1;
+  height: 4px;
+  border-radius: 2px;
+  background: rgba(255,255,255,.1);
+}
+
+.creator-room-progress i.is-lit {
+  background: var(--creator-accent);
+}
+
+.creator-output-banner {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) auto;
+  align-items: center;
+  gap: 14px;
+  padding: 15px;
+}
+
+.creator-output-banner h4 {
+  margin: 5px 0 4px;
+  color: var(--creator-text);
+  font-size: 19px;
+  letter-spacing: -.035em;
+}
+
+.creator-output-banner p {
+  margin: 0;
+  color: var(--creator-muted);
+  font-size: 12.5px;
+  line-height: 1.45;
+}
+
+.creator-output-banner button,
+.creator-output-list button,
+.creator-render-queue button,
+.creator-room-output-actions button,
+.creator-output-vault button {
+  min-height: 34px;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 7px;
+  padding: 8px 11px;
+  font-size: 11.5px;
+  font-weight: 800;
+}
+
+.creator-output-banner-actions {
+  display: flex;
+  align-items: center;
+  justify-content: flex-end;
+  gap: 8px;
+  flex-wrap: wrap;
+}
+
+.creator-output-list {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 8px;
+  padding: 12px;
+}
+
+.creator-output-list article {
+  display: grid;
+  grid-template-columns: auto minmax(0, 1fr) auto;
+  align-items: center;
+  gap: 10px;
+  padding: 10px;
+  border: 1px solid rgba(115,115,115,.2);
+  border-radius: 10px;
+  background: rgba(255,255,255,.04);
+}
+
+.creator-output-list b,
+.creator-output-list span,
+.creator-output-list small {
+  display: block;
+}
+
+.creator-output-list b {
+  color: var(--creator-text);
+  font-size: 12.5px;
+}
+
+.creator-output-list span {
+  margin-top: 3px;
+  overflow: hidden;
+  color: var(--creator-muted);
+  font-size: 11.5px;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.creator-output-list small {
+  margin-top: 3px;
+  color: var(--creator-faint);
+  font-size: 11px;
+}
+
+.creator-output-card-actions {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  flex-wrap: wrap;
+  justify-content: flex-end;
+}
+
+.creator-output-list button {
+  min-height: 30px;
+  padding: 6px 9px;
+  font-size: 11px;
+}
+
+.creator-render-queue {
+  display: grid;
+  gap: 10px;
+  padding: 14px;
+}
+
+.creator-render-queue article {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) auto;
+  align-items: center;
+  gap: 12px;
+  padding: 12px;
+  border: 1px solid rgba(115,115,115,.2);
+  border-radius: 10px;
+  background: rgba(255,255,255,.045);
+}
+
+.creator-render-queue h4 {
+  margin: 4px 0 5px;
+  color: var(--creator-text);
+  font-size: 16px;
+  letter-spacing: -.02em;
+}
+
+.creator-render-queue p {
+  margin: 0;
+  color: var(--creator-muted);
+  font-size: 12.5px;
+  line-height: 1.45;
+}
+
+.creator-render-queue span,
+.creator-render-queue small {
+  display: block;
+  color: var(--creator-faint);
+  font-size: 10.5px;
+  font-weight: 850;
+  letter-spacing: .1em;
+  text-transform: uppercase;
+}
+
+.creator-render-queue small {
+  margin-top: 6px;
+  text-transform: none;
+  letter-spacing: normal;
+  font-weight: 650;
+}
+
+.creator-flow-preview {
+  padding: 16px;
+}
+
+.creator-scene-strip {
+  display: grid;
+  grid-template-columns: repeat(7, minmax(0, 1fr));
+  gap: 8px;
+}
+
+.creator-scene-strip article {
+  min-height: 94px;
+  padding: 10px;
+  border-radius: 10px;
+  background: rgba(255,255,255,.055);
+}
+
+.creator-scene-strip b,
+.creator-scene-strip span,
+.creator-scene-strip small {
+  display: block;
+}
+
+.creator-scene-strip b {
+  width: 24px;
+  height: 24px;
+  display: grid;
+  place-items: center;
+  margin-bottom: 8px;
+  border-radius: 999px;
+  background: rgba(255,255,255,.16);
+}
+
+.creator-scene-strip span {
+  color: var(--creator-text);
+  font-size: 12px;
+  font-weight: 800;
+}
+
+.creator-scene-strip small {
+  margin-top: 4px;
+  color: var(--creator-faint);
+}
+
+.creator-room-screen {
+  display: grid;
+  grid-template-rows: auto minmax(0, 1fr);
+  gap: 12px;
+  padding: 0;
+  border: 0;
+  background: transparent;
+  box-shadow: none;
+}
+
+.creator-room-head {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) auto;
+  align-items: center;
+  gap: 14px;
+  padding: 18px;
+}
+
+.creator-room-head h3 {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  font-size: clamp(28px, 3.2vw, 46px);
+}
+
+.creator-room-output-actions {
+  display: flex;
+  align-items: center;
+  justify-content: flex-end;
+  gap: 8px;
+  flex-wrap: wrap;
+}
+
+.creator-room-output-actions b {
+  padding: 8px 12px;
+  border-radius: 999px;
+  color: var(--creator-bg);
+  background: var(--creator-text);
+  font-size: 11px;
+  text-transform: uppercase;
+  white-space: nowrap;
+}
+
+.creator-storyboard-room,
+.creator-clips-room,
+.creator-animation-room,
+.creator-comics-room,
+.creator-preview-room,
+.creator-footage-room {
+  min-height: 0;
+  overflow: auto;
+}
+
+.creator-preview-room {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) minmax(260px, 320px);
+  gap: 12px;
+  overflow: hidden;
+}
+
+.creator-preview-player,
+.creator-preview-inspector > section {
+  border: 1px solid var(--creator-line);
+  border-radius: 12px;
+  background:
+    linear-gradient(180deg, rgba(255,255,255,.055), rgba(255,255,255,.02)),
+    rgba(10,10,10,.9);
+  box-shadow: 0 18px 52px rgba(0,0,0,.25);
+}
+
+.creator-preview-player {
+  min-height: 0;
+  display: grid;
+  grid-template-rows: minmax(0, 1fr) auto auto;
+  gap: 12px;
+  padding: 14px;
+  overflow: hidden;
+}
+
+.creator-preview-stage {
+  min-height: 390px;
+  display: grid;
+  grid-template-columns: minmax(0, 1.2fr) minmax(240px, .8fr);
+  gap: 12px;
+}
+
+.creator-preview-frame,
+.creator-preview-visual {
+  min-width: 0;
+  border: 1px solid rgba(115,115,115,.22);
+  border-radius: 12px;
+  background:
+    radial-gradient(circle at 50% 18%, rgba(255,255,255,.12), transparent 34%),
+    linear-gradient(145deg, rgba(255,255,255,.065), rgba(255,255,255,.018)),
+    var(--creator-bg);
+  padding: 18px;
+}
+
+.creator-preview-frame {
+  display: flex;
+  flex-direction: column;
+  justify-content: center;
+}
+
+.creator-preview-frame span,
+.creator-preview-visual b,
+.creator-preview-inspector span {
+  color: var(--creator-faint);
+  font-size: 10.5px;
+  font-weight: 850;
+  letter-spacing: .12em;
+  text-transform: uppercase;
+}
+
+.creator-preview-frame h4 {
+  margin: 10px 0 8px;
+  color: var(--creator-text);
+  font-size: clamp(34px, 5vw, 68px);
+  line-height: .9;
+  letter-spacing: -.08em;
+}
+
+.creator-preview-frame p {
+  max-width: 680px;
+  margin: 0;
+  color: var(--creator-muted);
+  font-size: clamp(15px, 1.5vw, 21px);
+  line-height: 1.42;
+}
+
+.creator-preview-frame em {
+  display: block;
+  margin-top: 18px;
+  color: var(--creator-muted);
+  font-style: normal;
+}
+
+.creator-preview-visual {
+  display: grid;
+  align-content: center;
+  gap: 10px;
+}
+
+.creator-preview-visual p,
+.creator-preview-visual small,
+.creator-preview-inspector p {
+  margin: 0;
+  color: var(--creator-muted);
+  line-height: 1.45;
+}
+
+.creator-preview-visual small {
+  color: var(--creator-faint);
+}
+
+.creator-preview-progress {
+  height: 7px;
+  overflow: hidden;
+  border-radius: 999px;
+  background: rgba(255,255,255,.08);
+}
+
+.creator-preview-progress i {
+  display: block;
+  height: 100%;
+  border-radius: inherit;
+  background: linear-gradient(90deg, var(--creator-text), rgba(245,245,245,.2));
+  transition: width .25s ease;
+}
+
+.creator-preview-controls {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  flex-wrap: wrap;
+}
+
+.creator-preview-controls button,
+.creator-preview-inspector button {
+  min-height: 34px;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 7px;
+  padding: 8px 11px;
+  font-size: 11.5px;
+  font-weight: 800;
+}
+
+.creator-preview-controls button.is-active {
+  border-color: rgba(245,245,245,.6);
+  color: var(--creator-bg);
+  background:
+    linear-gradient(180deg, rgba(245,245,245,.98), rgba(215,215,215,.94)),
+    var(--creator-text);
+}
+
+.creator-preview-controls > span {
+  margin-left: auto;
+  color: var(--creator-muted);
+  font-size: 12px;
+  font-weight: 800;
+}
+
+.creator-preview-inspector {
+  min-height: 0;
+  display: grid;
+  align-content: start;
+  gap: 12px;
+  overflow: auto;
+}
+
+.creator-preview-inspector > section {
+  padding: 14px;
+}
+
+.creator-preview-inspector h4 {
+  margin: 7px 0 7px;
+  color: var(--creator-text);
+  font-size: 18px;
+}
+
+.creator-preview-inspector button {
+  margin-top: 12px;
+}
+
+.creator-preview-timeline {
+  display: grid;
+  gap: 7px;
+  margin-top: 10px;
+}
+
+.creator-timeline-row {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) auto;
+  align-items: stretch;
+  gap: 6px;
+}
+
+.creator-timeline-select {
+  display: grid;
+  grid-template-columns: auto minmax(0, 1fr) auto;
+  align-items: center;
+  gap: 8px;
+  padding: 8px;
+  text-align: left;
+  min-width: 0;
+}
+
+.creator-timeline-row.is-active .creator-timeline-select {
+  border-color: rgba(245,245,245,.6);
+  background:
+    linear-gradient(180deg, rgba(245,245,245,.18), rgba(245,245,245,.055)),
+    rgba(38,38,38,.95);
+}
+
+.creator-timeline-select b {
+  width: 25px;
+  height: 25px;
+  display: grid;
+  place-items: center;
+  border-radius: 999px;
+  color: var(--creator-bg);
+  background: var(--creator-text);
+  font-size: 11px;
+  flex-shrink: 0;
+}
+
+.creator-timeline-select span {
+  overflow: hidden;
+  color: var(--creator-muted);
+  font-size: 12px;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.creator-timeline-select em {
+  flex-shrink: 0;
+  color: var(--creator-faint);
+  font-size: 10.5px;
+  font-style: normal;
+}
+
+.creator-timeline-reorder {
+  display: grid;
+  grid-template-rows: 1fr 1fr;
+  gap: 4px;
+  flex-shrink: 0;
+}
+
+.creator-timeline-reorder button {
+  display: grid;
+  place-items: center;
+  width: 26px;
+  padding: 0;
+}
+
+.creator-scene-editor {
+  display: grid;
+  gap: 9px;
+  margin-top: 14px;
+  padding-top: 14px;
+  border-top: 1px solid var(--creator-line-soft);
+}
+
+.creator-scene-editor label {
+  display: grid;
+  gap: 5px;
+}
+
+.creator-scene-editor label span {
+  color: var(--creator-faint);
+  font-size: 10px;
+  font-weight: 800;
+  letter-spacing: .08em;
+  text-transform: uppercase;
+}
+
+.creator-scene-editor input,
+.creator-scene-editor textarea {
+  width: 100%;
+  border: 1px solid rgba(115,115,115,.3);
+  border-radius: 8px;
+  outline: none;
+  color: var(--creator-text);
+  background: rgba(23,23,23,.88);
+  padding: 8px 10px;
+  font: inherit;
+  font-size: 12.5px;
+}
+
+.creator-scene-editor textarea {
+  resize: vertical;
+  min-height: 64px;
+}
+
+.creator-scene-editor input:focus,
+.creator-scene-editor textarea:focus {
+  border-color: rgba(245,245,245,.55);
+  box-shadow: 0 0 0 3px rgba(255,255,255,.06);
+}
+
+.creator-scene-editor > p {
+  margin: 0;
+  color: var(--creator-muted);
+  font-size: 12px;
+}
+
+.creator-scene-editor > button {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 7px;
+  min-height: 38px;
+  font-weight: 750;
+}
+
+.creator-storyboard-room,
+.creator-clips-room {
+  display: grid;
+  gap: 10px;
+}
+
+.creator-scene-card {
+  display: grid;
+  grid-template-columns: auto minmax(0, 1fr);
+  gap: 14px;
+  padding: 15px;
+}
+
+.creator-scene-number {
+  position: relative;
+  width: 38px;
+  height: 38px;
+  display: grid;
+  place-items: center;
+  border-radius: 999px;
+  color: var(--creator-bg);
+  background: var(--creator-text);
+  font-weight: 900;
+  overflow: hidden;
+}
+
+/* Once a scene has a real generated image, the number badge becomes a small
+   round thumbnail with the order number overlaid instead of a flat circle —
+   the first real "footage" moment in the Storyboard list. */
+.creator-scene-number img {
+  position: absolute;
+  inset: 0;
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+}
+
+.creator-scene-number img + span {
+  position: relative;
+  z-index: 1;
+  display: grid;
+  place-items: center;
+  width: 100%;
+  height: 100%;
+  color: var(--t1, #fff);
+  background: rgba(0,0,0,.38);
+  font-size: 12px;
+}
+
+.creator-scene-card span,
+.creator-clip-card span,
+.creator-asset-card span,
+.creator-motion-card span,
+.creator-comic-card span {
+  color: var(--creator-faint);
+  font-size: 10.5px;
+  font-weight: 850;
+  letter-spacing: .1em;
+  text-transform: uppercase;
+}
+
+.creator-scene-card h4,
+.creator-clip-card h4,
+.creator-motion-card h4,
+.creator-comic-card h4,
+.creator-asset-card h4 {
+  margin: 5px 0 0;
+  color: var(--creator-text);
+  font-size: 16px;
+}
+
+.creator-scene-card p,
+.creator-clip-card p,
+.creator-motion-card p,
+.creator-comic-card p,
+.creator-asset-card p {
+  margin: 7px 0 0;
+  color: var(--creator-muted);
+  line-height: 1.45;
+}
+
+.creator-motion-instruction {
+  width: 100%;
+  margin: 7px 0 0;
+  padding: 8px 9px;
+  border: 1px solid rgba(115,115,115,.26);
+  border-radius: 8px;
+  outline: none;
+  resize: vertical;
+  color: var(--creator-muted);
+  background: rgba(0,0,0,.28);
+  line-height: 1.45;
+  font: inherit;
+  font-size: 12.5px;
+}
+
+.creator-motion-instruction:focus {
+  color: var(--creator-text);
+  border-color: rgba(245,245,245,.5);
+  box-shadow: 0 0 0 3px rgba(255,255,255,.06);
+}
+
+.creator-scene-card small,
+.creator-motion-card small,
+.creator-comic-card small,
+.creator-asset-card small {
+  display: block;
+  margin-top: 8px;
+  color: var(--creator-faint);
+}
+
+.creator-clip-card {
+  position: relative;
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) auto;
+  gap: 14px;
+  padding: 15px;
+  overflow: hidden;
+}
+
+.creator-clip-card > b {
+  width: 46px;
+  height: 46px;
+  display: grid;
+  place-items: center;
+  border-radius: 999px;
+  color: var(--creator-bg);
+  background: var(--creator-text);
+  font-size: 16px;
+}
+
+.creator-clip-meter {
+  grid-column: 1 / -1;
+  height: 6px;
+  overflow: hidden;
+  border-radius: 999px;
+  background: rgba(255,255,255,.08);
+}
+
+.creator-clip-meter i {
+  display: block;
+  height: 100%;
+  border-radius: inherit;
+  background: linear-gradient(90deg, var(--creator-text), rgba(245,245,245,.18));
+}
+
+.creator-animation-room,
+.creator-comics-room,
+.creator-asset-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(230px, 1fr));
+  gap: 10px;
+}
+
+.creator-motion-card,
+.creator-comic-card,
+.creator-asset-card {
+  min-height: 170px;
+  padding: 15px;
+}
+
+.creator-motion-card.is-wide {
+  grid-column: 1 / -1;
+  min-height: 120px;
+}
+
+.creator-comic-card em {
+  display: block;
+  margin-top: 10px;
+  color: var(--creator-faint);
+  font-style: normal;
+  line-height: 1.4;
+}
+
+.creator-illustration-room {
+  min-height: 0;
+  display: grid;
+  grid-template-columns: minmax(300px, 380px) minmax(0, 1fr);
+  gap: 12px;
+  overflow: hidden;
+}
+
+.creator-illustration-prompts {
+  min-height: 0;
+  overflow: auto;
+  display: grid;
+  align-content: start;
+  gap: 10px;
+  padding: 14px;
+  border: 1px solid var(--creator-line);
+  border-radius: 12px;
+  background: rgba(10,10,10,.86);
+}
+
+.creator-prompt-card {
+  display: grid;
+  gap: 10px;
+  padding: 12px;
+}
+
+.creator-prompt-card p {
+  margin: 0;
+  color: var(--creator-muted);
+  line-height: 1.45;
+}
+
+.creator-prompt-card small {
+  color: var(--creator-faint);
+}
+
+.creator-prompt-card-actions {
+  display: flex;
+  gap: 8px;
+}
+
+.creator-prompt-card button {
+  display: inline-flex;
+  align-items: center;
+  gap: 7px;
+  padding: 8px 11px;
+}
+
+.creator-custom-prompt-card {
+  display: grid;
+  gap: 10px;
+  padding: 12px;
+  border: 1px solid rgba(212,212,212,.24);
+  border-radius: 10px;
+  background:
+    linear-gradient(180deg, rgba(255,255,255,.075), rgba(255,255,255,.03)),
+    rgba(0,0,0,.3);
+}
+
+.creator-custom-prompt-card textarea {
+  width: 100%;
+  border: 1px solid rgba(115,115,115,.3);
+  border-radius: 8px;
+  outline: none;
+  color: var(--creator-text);
+  background: rgba(23,23,23,.88);
+  padding: 10px 11px;
+  font: inherit;
+  font-size: 12.5px;
+  resize: vertical;
+  min-height: 84px;
+}
+
+.creator-custom-prompt-card textarea:focus {
+  border-color: rgba(245,245,245,.55);
+  box-shadow: 0 0 0 3px rgba(255,255,255,.06);
+}
+
+.creator-custom-prompt-row {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 8px;
+}
+
+.creator-custom-prompt-row label {
+  display: grid;
+  gap: 5px;
+}
+
+.creator-custom-prompt-row span {
+  color: var(--creator-faint);
+  font-size: 10px;
+  font-weight: 800;
+  letter-spacing: .08em;
+  text-transform: uppercase;
+}
+
+.creator-custom-prompt-row select {
+  width: 100%;
+  border: 1px solid rgba(115,115,115,.3);
+  border-radius: 8px;
+  outline: none;
+  color: var(--creator-text);
+  background: rgba(23,23,23,.88);
+  padding: 8px 10px;
+  font: inherit;
+  font-size: 12px;
+}
+
+.creator-custom-prompt-actions {
+  display: flex;
+  gap: 8px;
+}
+
+.creator-custom-prompt-actions button {
+  flex: 1;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 8px;
+  min-height: 38px;
+  border: 1px solid rgba(212,212,212,.18);
+  border-radius: 8px;
+  color: var(--creator-text);
+  background:
+    linear-gradient(180deg, rgba(255,255,255,.09), rgba(255,255,255,.035)),
+    rgba(23,23,23,.9);
+  font-weight: 800;
+  font-size: 12px;
+  cursor: pointer;
+}
+
+.creator-custom-prompt-actions button:hover:not(:disabled) {
+  border-color: rgba(245,245,245,.42);
+}
+
+.creator-custom-prompt-actions button:disabled {
+  opacity: .5;
+  cursor: not-allowed;
+}
+
+.creator-save-prompt-btn {
+  background: transparent !important;
+}
+
+.creator-fallback-note {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  padding: 8px 10px;
+  border: 1px solid rgba(212,212,212,.18);
+  border-radius: 8px;
+  background: rgba(255,255,255,.05);
+  color: var(--creator-muted);
+  font-size: 11.5px;
+}
+
+.creator-illustration-preview {
+  min-height: 0;
+  display: flex;
+  flex-direction: column;
+  overflow: hidden;
+  border: 1px solid var(--creator-line);
+  border-radius: 12px;
+  background:
+    radial-gradient(circle at 50% 20%, rgba(255,255,255,.12), transparent 30%),
+    var(--creator-bg);
+}
+
+.creator-illustration-preview img {
+  flex: 1;
+  min-height: 0;
+  width: 100%;
+  object-fit: contain;
+}
+
+.creator-illustration-empty {
+  flex: 1;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: 10px;
+  color: var(--creator-faint);
+}
+
+.creator-illustration-preview-meta {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 10px;
+  padding: 10px 12px;
+  border-top: 1px solid var(--creator-line);
+  background: rgba(10,10,10,.92);
+}
+
+.creator-illustration-preview-meta span {
+  flex: 1;
+  min-width: 0;
+  overflow: hidden;
+  color: var(--creator-muted);
+  font-size: 12px;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.creator-illustration-preview-meta > div {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+
+.creator-illustration-preview-meta b {
+  color: var(--creator-muted);
+  font-size: 10px;
+  text-transform: uppercase;
+}
+
+.creator-illustration-preview-meta a {
+  display: inline-flex;
+  align-items: center;
+  gap: 5px;
+  padding: 6px 9px;
+  color: var(--creator-text);
+  font-size: 11px;
+  text-decoration: none;
+}
+
+.creator-source-policy {
+  margin: 0 0 10px;
+  padding: 12px;
+  line-height: 1.4;
+}
+
+.creator-error {
+  padding: 10px 11px;
+  border: 1px solid rgba(245,245,245,.18);
+  border-radius: 10px;
+  color: var(--creator-text);
+  background: rgba(255,255,255,.08);
+  font-size: 12px;
+}
+
+.creator-render-success {
+  padding: 10px 11px;
+  border: 1px solid rgba(110,231,183,.35);
+  border-radius: 10px;
+  color: var(--neon);
+  background: rgba(110,231,183,.08);
+  font-size: 12px;
+  word-break: break-all;
+}
+
+.creator-render-progress-text {
+  color: var(--creator-muted);
+  font-size: 12px;
+}
+
+.creator-section-title-row {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 8px;
+}
+
+.creator-bulk-generate-btn {
+  display: inline-flex;
+  align-items: center;
+  gap: 5px;
+  padding: 5px 10px;
+  border-radius: 999px;
+  border: 1px solid rgba(255,209,102,.35);
+  background: rgba(255,209,102,.08);
+  color: var(--creator-accent);
+  font-size: 11px;
+  font-weight: 700;
+  cursor: pointer;
+}
+
+.creator-bulk-generate-btn:disabled {
+  opacity: .5;
+  cursor: default;
+}
+
+.creator-scene-attached {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  color: var(--neon);
+  font-size: 11px;
+  font-weight: 700;
+}
+
+.creator-inspector {
+  color: var(--creator-muted);
+}
+
+.creator-inspector > section {
+  padding: 14px;
+}
+
+.creator-inspector h3 {
+  margin: 7px 0 7px;
+  color: var(--creator-text);
+  font-size: 18px;
+  line-height: 1.1;
+  letter-spacing: -.03em;
+}
+
+.creator-inspector-grid {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 8px;
+}
+
+.creator-inspector-grid article {
+  padding: 10px;
+  border-radius: 10px;
+  background: rgba(255,255,255,.045);
+}
+
+.creator-inspector-grid b {
+  font-size: 14px;
+}
+
+.creator-output-vault {
+  display: grid;
+  gap: 9px;
+}
+
+.creator-output-vault h3 {
+  margin-bottom: 0;
+}
+
+.creator-output-vault p {
+  margin: 0;
+}
+
+.creator-output-vault small {
+  color: var(--creator-faint);
+  font-size: 11px;
+  line-height: 1.4;
+}
+
+.creator-gate-list {
+  display: grid;
+  gap: 8px;
+}
+
+.creator-gate-list > span {
+  margin-bottom: 2px;
+}
+
+.creator-gate-list article {
+  display: grid;
+  grid-template-columns: auto minmax(0, 1fr);
+  align-items: start;
+  gap: 9px;
+  padding: 10px;
+  border: 1px solid rgba(115,115,115,.22);
+  border-radius: 10px;
+  background: rgba(255,255,255,.045);
+}
+
+.creator-gate-list article.is-ready {
+  background: rgba(255,255,255,.075);
+}
+
+.creator-gate-list b,
+.creator-gate-list small {
+  display: block;
+}
+
+.creator-gate-list b {
+  color: var(--creator-text);
+  font-size: 12px;
+}
+
+.creator-gate-list small {
+  margin-top: 3px;
+  color: var(--creator-faint);
+  font-size: 11px;
+}
+
+.creator-approve-btn {
+  width: 100%;
+  min-height: 36px;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 7px;
+  margin-top: 2px;
+  border: 1px solid transparent;
+  border-radius: 10px;
+  color: var(--creator-accent-ink);
+  background: var(--creator-accent);
+  box-shadow: 0 8px 24px rgba(255,209,102,.22);
+  font-size: 11.5px;
+  font-weight: 800;
+  cursor: pointer;
+  transition: transform .15s ease, box-shadow .15s ease, filter .15s ease;
+}
+
+.creator-approve-btn:hover:not(:disabled) {
+  transform: translateY(-1px);
+  filter: brightness(1.08);
+  box-shadow: 0 10px 30px rgba(255,209,102,.3);
+}
+
+.creator-approve-btn:active:not(:disabled) {
+  transform: translateY(0);
+}
+
+.creator-approve-btn:disabled {
+  opacity: .38;
+  cursor: not-allowed;
+  transform: none;
+  box-shadow: none;
+  background: rgba(255,255,255,.08);
+  color: var(--creator-muted);
+}
+
+.creator-spin {
+  animation: creator-spin .9s linear infinite;
+}
+
+@keyframes creator-spin {
+  to { transform: rotate(360deg); }
+}
+
+@media (max-width: 1280px) {
+  .creator-cockpit {
+    grid-template-columns: minmax(258px, 300px) minmax(0, 1fr);
+  }
+
+  .creator-inspector {
+    display: none;
+  }
+}
+
+@media (max-width: 940px) {
+  .creator-cockpit {
+    height: auto;
+    min-height: 0;
+    overflow: auto;
+    grid-template-columns: 1fr;
+  }
+
+  .creator-left-rail,
+  .creator-main-stage {
+    overflow: visible;
+  }
+
+  .creator-room-grid,
+  .creator-output-list,
+  .creator-metric-grid,
+  .creator-scene-strip,
+  .creator-illustration-room,
+  .creator-preview-room,
+  .creator-preview-stage {
+    grid-template-columns: 1fr;
+  }
+}
+
+/* Storyboard room: generate images straight from the board. */
+.creator-storyboard-actions { display: flex; flex-wrap: wrap; align-items: center; gap: 10px; margin-bottom: 12px; }
+.creator-storyboard-actions button { padding: 8px 14px; border-radius: 9px; border: 1px solid rgba(79,166,255,.35); background: rgba(79,166,255,.10); color: #e8e8ea; font-size: 12px; font-weight: 600; cursor: pointer; }
+.creator-storyboard-actions button:disabled { opacity: .55; cursor: default; }
+.creator-storyboard-actions span { flex: 1 1 240px; min-width: 0; font-size: 11px; color: #8b8c8f; line-height: 1.5; }
+.creator-scene-actions { display: flex; align-items: center; gap: 8px; margin-top: 8px; flex-wrap: wrap; }
+.creator-scene-actions button { padding: 5px 11px; border-radius: 8px; border: 1px solid rgba(255,255,255,.14); background: rgba(255,255,255,.05); color: #e8e8ea; font-size: 11px; cursor: pointer; }
+.creator-scene-actions em { font-style: normal; font-size: 10.5px; color: #75767b; }
+
+/* Step 1: project type picker. */
+.creator-type-picker { display: grid; gap: 7px; }
+.creator-type-label { font-size: 11px; font-weight: 600; letter-spacing: .04em; color: #8b8c8f; text-transform: uppercase; }
+.creator-type-row { display: grid; grid-template-columns: repeat(auto-fit, minmax(132px, 1fr)); gap: 7px; }
+.creator-type-row button { display: grid; gap: 3px; text-align: left; padding: 9px 11px; border-radius: 10px; border: 1px solid rgba(255,255,255,.1); background: rgba(255,255,255,.03); color: #e8e8ea; cursor: pointer; }
+.creator-type-row button.is-on { border-color: rgba(79,166,255,.55); background: rgba(79,166,255,.12); }
+.creator-type-row button b { font-size: 12.5px; font-weight: 600; }
+.creator-type-row button em { font-style: normal; font-size: 10.5px; color: #8b8c8f; line-height: 1.4; }
